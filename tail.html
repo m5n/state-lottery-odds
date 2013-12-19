@@ -1,0 +1,285 @@
+
+function format(nn, isMoney) {
+    var pad = 11;
+
+    if (typeof nn !== 'number') {
+        while (nn.length < pad) {
+            nn = ' ' + nn;
+        }
+        if (isMoney) {
+            nn = ' ' + nn;
+        }
+        return nn;
+    }
+
+    var res = '';
+    var dds = String(Math.round(nn)).split('').reverse();
+    for (var dd = 0; dd < dds.length; dd += 1) {
+        if (dd > 0 && dd % 3 === 0) {
+            res = ',' + res;
+        }
+        res = dds[dd] + res;
+    }
+    while (res.length < pad) {
+        res = ' ' + res;
+    }
+    return (isMoney ? '$' : '') + res;
+}
+
+function bestodds(res, sortBy) {
+    var output = document.getElementById('output');
+    var maxes = {};   // Prize --> [ [game_idx, line_idx], ... ]
+    for (var gg = 0; gg < games.length; gg += 1) {
+        for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+            if (maxes[games[gg].lines[ll].prize]) {
+                var max = maxes[games[gg].lines[ll].prize];
+                if (games[gg].lines[ll].real_odds === games[max[0][0]].lines[max[0][1]].real_odds) {
+                    // Another max with same odds.
+                    maxes[games[gg].lines[ll].prize].push([gg, ll]);
+                } else if (games[gg].lines[ll].real_odds < games[max[0][0]].lines[max[0][1]].real_odds) {
+                    // New max.
+                    maxes[games[gg].lines[ll].prize] = [ [gg, ll] ];
+                }
+            } else {
+                // First max.
+                maxes[games[gg].lines[ll].prize] = [ [gg, ll] ];
+            }
+        }
+    }
+
+    var arr = [], sortFn, name;
+    for (var mm in maxes) {
+        arr.push(mm);
+    }
+    if (sortBy === 'odds') {
+        sortFn = function (a, b) {
+            var infoA = maxes[a][0],
+                infoB = maxes[b][0],
+                oddsA = games[infoA[0]].lines[infoA[1]].real_odds,
+                oddsB = games[infoB[0]].lines[infoB[1]].real_odds;
+            return oddsA - oddsB; 
+        };
+    } else {
+        // Sort by prize.
+        sortFn = function (a, b) {
+            if (a === 'ticket') {
+                return Number.MAX_VALUE;
+            } else if (b === 'ticket') {
+                return -Number.MAX_VALUE;
+            } else {
+                return b - a; 
+            }
+        };
+    }
+    arr.sort(sortFn);
+
+    res += '<ul>';
+    for (var aa = 0; aa < arr.length; aa += 1) {
+        mm = arr[aa];
+        for (var ii = 0; ii < maxes[mm].length; ii += 1) {
+            if (games[maxes[mm][ii][0]].lines[maxes[mm][ii][1]].prize === 0 ||
+                    games[maxes[mm][ii][0]].lines[maxes[mm][ii][1]].prize === 'ticket') {
+                // $0 or free ticket doesn't get you any cash.
+                continue;
+            }
+
+            name = games[maxes[mm][ii][0]].name.substring(games[maxes[mm][ii][0]].name.lastIndexOf('/') + 1);
+            res += '<li>' + (sortBy === 'odds' ? '' : '<strong>') + format(games[maxes[mm][ii][0]].lines[maxes[mm][ii][1]].prize, true) + (sortBy === 'odds' ? '' : '</strong>') + ': ' + (sortBy === 'odds' ? '<strong>' : '') + '1 in ' + format(games[maxes[mm][ii][0]].lines[maxes[mm][ii][1]].real_odds) + (sortBy === 'odds' ? '</strong>' : '') + ': <a href="' + games[maxes[mm][ii][0]].name + '">' + name + '</a> ' + (games[maxes[mm][ii][0]].number ? ', #' + games[maxes[mm][ii][0]].number : '') + ' ($' + games[maxes[mm][ii][0]].cost + ' ' + games[maxes[mm][ii][0]].type + ' ticket)</li>';
+        }
+    }
+    res += '</ul>';
+
+    output.innerHTML = res;
+}
+function bestodds_old(res, cashOnly) {
+    var output = document.getElementById('output');
+
+    var low = Number.MAX_VALUE;
+    var matches = {};   // Game index --> [ line indices ]
+    var numMatches = 0;
+
+    // Collect raw data.
+    for (var gg = 0; gg < games.length; gg += 1) {
+        for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+            if (cashOnly && games[gg].lines[ll].prize === 'ticket') {
+                // Exclude ticket prizes.
+                continue;
+            }
+
+            var odds = games[gg].lines[ll].real_odds;
+            if (odds < low) {
+                // New low.
+                low = odds;
+                matches = {};
+                matches[gg] = [ll];
+                numMatches = 1;
+            } else if (odds === low) {
+                // Same low.
+                if (matches[gg]) {
+                    // Within same game.
+                    matches[gg].push(ll);
+                } else {
+                    // Within new game.
+                    matches[gg] = [ll];
+                    numMatches += 1;
+                }
+            }
+        }
+    }
+
+    // TODO:
+    // Two cases to consider:
+    // 1. Multiple lines with same odds in one game.
+    //    For example, with suits: 1:4 chance at Hearts, and 1:4 chance at Clubs.
+    //    This makes 2:4 = 1:2 chance at Hearts or Clubs.
+    //    So, add odds in this case.
+    // 2. Multiple games with same odds.
+    //    Game with highest prize at those odds is preferred.
+
+    if (numMatches === 1) {
+        res += 'BEST MATCH:\n';
+        for (var mm in matches) {
+            if (matches.hasOwnProperty(mm)) {
+                res += games[mm].name + (games[mm].number ? ',  #' + games[mm].number : '') + ' ($' + games[mm].cost + ' ' + games[mm].type + ' ticket):\n';
+                var odds = games[mm].lines[matches[mm][0]].real_odds / matches[mm].length;
+                res += '1 in ' + format(odds) + ' --> ';
+                for (var ll = 0; ll < matches[mm].length; ll += 1) {
+                    if (ll > 0) {
+                        res += ' or ';
+                    }
+                    res += format(games[mm].lines[matches[mm][ll]].prize, true);
+                }
+                res += '\n';
+            }
+        }
+    } else {
+        res += 'TODO: multiple game match\n';
+// find game with multiple matches first
+// from those with equal matches, find highest prize money
+// if equal still, look at other odds too
+// if equal still, output all
+    }
+
+    res += '\nRAW DATA:\n';
+    for (var mm in matches) {
+        if (matches.hasOwnProperty(mm)) {
+            res += games[mm].name + (games[mm].number ? ', #' + games[mm].number : '') + ' ($' + games[mm].cost + ' ' + games[mm].type + ' ticket):\n';
+            for (var ll = 0; ll < matches[mm].length; ll += 1) {
+                res += '1 in ' + format(games[mm].lines[matches[mm][ll]].real_odds) + ' --> ' + format(games[mm].lines[matches[mm][ll]].prize, true) + '\n';
+            }
+        }
+    }
+
+    output.innerHTML = res;
+};
+
+document.getElementById('date').innerHTML = date;
+
+document.getElementById('bestodds').addEventListener('click', function () {
+    var res = '<p>Best odds of winning cash or free ticket with a single ticket purchase:</p>';
+    bestodds(res, 'odds');
+});
+
+// TODO: do something similar as above for bestodds
+document.getElementById('highestprize').addEventListener('click', function () {
+    var res = '<p>Highest prize that can be won with a single ticket purchase:</p>';
+    bestodds(res, 'prize');
+});
+
+document.getElementById('ihave').addEventListener('click', function () {
+    var res = '<p>What tickets to buy with $$$ to spend:</p>';
+    var output = document.getElementById('output');
+    output.innerHTML = res + '<p>TODO</p>';
+});
+
+// Add more data we need to the "games" data structure.
+// TODO: whoever generates games.json should calculate this
+for (var gg = 0; gg < games.length; gg += 1) {
+    // Total tickets printed.
+    var total_tickets = 0;
+    var max_prize = 0;
+    var max_idx;
+    for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+        // "Ticket" prizes are low and can be ignored for the purposes of finding the max prize.
+        if (typeof games[gg].lines[ll].prize === 'number' && games[gg].lines[ll].prize > max_prize) {
+            max_prize = games[gg].lines[ll].prize;
+            max_idx = ll;
+        }
+    }
+    games[gg].total_tickets = games[gg].lines[max_idx].odds * games[gg].lines[max_idx].wins_total;
+
+    // Real odds based on #prizes remaining.
+    for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+        if (games[gg].type === 'scratcher') {
+            games[gg].lines[ll].real_odds = games[gg].total_tickets / games[gg].lines[ll].wins_left;
+        } else {
+            games[gg].lines[ll].real_odds = games[gg].lines[ll].odds;
+        }
+    }
+}
+
+// Validate wins_left.
+for (var gg = 0; gg < games.length; gg += 1) {
+    if (games[gg].type === 'scratcher') {
+        for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+            if (games[gg].lines[ll].wins_total - games[gg].lines[ll].wins_claimed !== games[gg].lines[ll].wins_left) {
+                throw new Error(games[gg].name + ', prize ' + games[gg].lines[ll].prize + ': total wins (' + games[gg].lines[ll].wins_total + ') - claimed wins (' + games[gg].lines[ll].wins_claimed + ') != remaining wins (' + games[gg].lines[ll].wins_left + ')');
+            }
+        }
+    }
+}
+
+// Validate claimed odds.
+for (var gg = 0; gg < games.length; gg += 1) {
+    if (games[gg].type === 'scratcher') {
+        var odds;
+        var decimals;
+        var overall_wins_total = 0;
+        var cash_wins_total = 0;
+        for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+            overall_wins_total += games[gg].lines[ll].wins_total;
+            if (games[gg].lines[ll].prize !== 'ticket') {
+                cash_wins_total += games[gg].lines[ll].wins_total;
+            }
+        }
+        odds = games[gg].total_tickets / overall_wins_total;
+        decimals = String(games[gg].overall_odds).length - String(games[gg].overall_odds).indexOf('.') - 1;
+        if (Math.round(odds * Math.pow(10, decimals)) / Math.pow(10, decimals) !== games[gg].overall_odds) {
+            throw new Error(games[gg].name + ': overall odds calculated as ' + odds + ' but reported as ' + games[gg].overall_odds);
+        }
+        odds = games[gg].total_tickets / cash_wins_total;
+        decimals = String(games[gg].cash_odds).length - String(games[gg].cash_odds).indexOf('.') - 1;
+        if (Math.round(odds * Math.pow(10, decimals)) / Math.pow(10, decimals) !== games[gg].cash_odds) {
+            throw new Error(games[gg].name + ': cash odds calculated as ' + odds + ' but reported as ' + games[gg].cash_odds);
+        }
+    } else {
+        var overall_odds = 0;
+        var cash_odds = 0;
+        var decimals;
+        for (var ll = 0; ll < games[gg].lines.length; ll += 1) {
+            overall_odds += 1 / games[gg].lines[ll].odds;
+            if (games[gg].lines[ll].prize !== 'ticket') {
+                cash_odds += 1 / games[gg].lines[ll].odds;
+            }
+        }
+        if (String(games[gg].overall_odds).indexOf('.') >= 0) {
+            decimals = String(games[gg].overall_odds).length - String(games[gg].overall_odds).indexOf('.') - 1;
+        } else {
+            decimals = 0;
+        }
+        if (Math.round(1 / overall_odds * Math.pow(10, decimals)) / Math.pow(10, decimals) !== games[gg].overall_odds) {
+            throw new Error(games[gg].name + ': overall odds calculated as ' + (1 / overall_odds) + ' but reported as ' + games[gg].overall_odds);
+        }
+        if (String(games[gg].cash_odds).indexOf('.') >= 0) {
+            decimals = String(games[gg].cash_odds).length - String(games[gg].cash_odds).indexOf('.') - 1;
+        } else {
+            decimals = 0;
+        }
+        if (Math.round(1 / cash_odds * Math.pow(10, decimals)) / Math.pow(10, decimals) !== games[gg].cash_odds) {
+            throw new Error(games[gg].name + ': cash odds calculated as ' + (1 / cash_odds) + ' but reported as ' + games[gg].cash_odds);
+        }
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Odds</title>
+<style>
+body {
+    width: 950px;
+    margin: 0 auto;
+}
+h1 {
+    margin: 1em;
+    font-size: smaller;
+    font-weight: normal;
+    color: gray;
+    text-align: center;
+}
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+button, #output {
+    font-size: larger;
+}
+button {
+    display: block;
+    width: 350px;
+    height: 3em;
+    margin: 1em auto;
+}
+#output {
+    min-height: 250px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+#output,
+.warning {
+    border: 1px solid black;
+    padding: 0 1em;
+    margin-bottom: 1em;
+}
+.warning li {
+    margin: 1em 0;
+}
+</style>
+</head>
+<body>
+<button id="bestodds">Best Odds of Winning</button>
+<button id="highestprize">Highest Prize Money</button>
+<button id="ihave">I Have $$$</button>
+<h1>&mdash; Generated on <span id="date"></span> &mdash;</h1>
+<pre id="output"></pre>
+<div class="warning">
+<p><strong>Lottery warning</strong>: the pay-out of lottery draw games are usually based on ticket sales.  Since no predetermined prizes are set for the upcoming draw, this application will show an estimated pay-out based on the <em>previous</em> draw results.</p>
+<p>This means the prizes shown by this application could be lower or the same or higher than can actually be won.</p>
+<p>Please use this application for entertainment purposes only.</p>
+</div>
+<div class="warning">
+<p><strong>Scratchers warning</strong>: the scratchers odds shown in this application (and as reported on the official scratchers lottery site) would only be reliable if all printed tickets were available at the one store you buy your ticket from.  In reality, this is not the case because:</p>
+<ul>
+<li>printed tickets are distributed to <em>many</em> stores, not just to the one you're buying from</li>
+<li>not all printed tickets may have been distributed to stores yet, so some may not be available for purchase</li>
+</ul>
+<p>This means the odds shown by this application could be worse or the same or better than the actual odds.</p>
+<p>Please use this application for entertainment purposes only.</p>
+</div>
+<script>
