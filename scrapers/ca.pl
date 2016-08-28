@@ -32,21 +32,25 @@ print "var games = [";
 my $sawone = 0;
 my $so;
 foreach (keys %hash) {
-print STDERR "processing: $_\n";
+print STDERR "Processing: $_\n";
     print $sawone ? ",\n" : "\n";
     $sawone = 1;
 
+    my $game_url = "$url$_";
     if (/draw-games/) {   # Lottery.
-        output_game_info("$url$_");
+        output_game_info($game_url);
     } else {   # Scratchers.
         sleep(2);   # Don't bombard the lottery server.
 
         my $regex = "($_/.+?)";
         $regex =~ s/\$/\\\$/g;   # "$1-scratcher" --> "\$1-scratcher"
 
-        $data = get("$url$_");
+        $data = get($game_url);
         @urls = $data =~ /["']$regex["']/g;
         my %hash2 = map { $_, 1 } @urls;
+        if (scalar(keys %hash2) == 0) {
+            print STDERR "No games available for '$game_url'\n";
+        }
         $so = 0;
         foreach (keys %hash2) {
             print $so ? ",\n" : "";
@@ -158,28 +162,28 @@ sub get_odds {
 # TODO: why do we get an error when defining this constant outside of the odds_lookup function?
 my %odds_lookup = (
     "powerball" => {
-       # TODO: get/compute non-rounded odds
-       "5 + Powerball" => 175223510,
-       "5"             => 5153633,
-       "4 + Powerball" => 648976,
-       "4"             => 19088,
-       "3 + Powerball" => 12245,
-       "3"             => 360,
-       "2 + Powerball" => 706,
-       "1 + Powerball" => 111,
-       "Powerball"     => 55
+       # http://www.durangobill.com/PowerballOdds.html
+       "5 + POWERBALL" => 292201338.00,
+       "5"             => 11688053.52,
+       "4 + POWERBALL" => 913129.18,
+       "4"             => 36525.17,
+       "3 + POWERBALL" => 14494.11,
+       "3"             => 579.76,
+       "2 + POWERBALL" => 701.33,
+       "1 + POWERBALL" => 91.98,
+       "POWERBALL"     => 38.32
     },
+    # http://www.durangobill.com/MegaMillionsOdds.html
     "mega-millions" => {
-       "5 + MEGA" => 175711536,
-       "5"        => 3904700.8,
-       # TODO: get/compute non-rounded odds
-       "4 + MEGA" => 689065,
-       "4"        => 15313,
-       "3 + MEGA" => 13781,
-       "3"        => 306,
-       "2 + MEGA" => 844,
-       "1 + MEGA" => 141,
-       "MEGA"     => 75
+       "5 + MEGA" => 258890850.00,
+       "5"        => 18492203.57,
+       "4 + MEGA" => 739688.14,
+       "4"        => 52834.87,
+       "3 + MEGA" => 10720.12,
+       "3"        => 765.72,
+       "2 + MEGA" => 472.95,
+       "1 + MEGA" => 56.47,
+       "MEGA"     => 21.39
    },
    "superlotto-plus" => {
        "5 + MEGA" => 41416353,
@@ -193,19 +197,19 @@ my %odds_lookup = (
        "MEGA"     => 48.686859033136312
    },
    "fantasy-5" => {
-       "Matched 5 of 5 Numbers" => 575757,
-       "Matched 4 of 5 Numbers" => 3386.805882352941176,
-       "Matched 3 of 5 Numbers" => 102.63048128342246,
-       "Matched 2 of 5 Numbers" => 9.621607620320856
+       "MATCHED 5 OF 5 NUMBERS" => 575757,
+       "MATCHED 4 OF 5 NUMBERS" => 3386.805882352941176,
+       "MATCHED 3 OF 5 NUMBERS" => 102.63048128342246,
+       "MATCHED 2 OF 5 NUMBERS" => 9.621607620320856
    }
 );
 
     my @parts = split '/', $url;
     my $game = $parts[$#parts];
 
-    if (!defined $odds_lookup{$game}{$matches}) {
+    if (!defined $odds_lookup{$game}{uc $matches}) {
        die "Cannot find odds for match '$matches' in game '$game'\n";
     }
 
-    return $odds_lookup{$game}{$matches};
+    return $odds_lookup{$game}{uc $matches};
 }
