@@ -50,6 +50,7 @@ print STDERR "Processing: $_\n";
         my %hash2 = map { $_, 1 } @urls;
         if (scalar(keys %hash2) == 0) {
             print STDERR "No games available for '$game_url'\n";
+            $sawone = 0;   # Skip outputting ",\n" at beginning of loop.
         }
         $so = 0;
         foreach (keys %hash2) {
